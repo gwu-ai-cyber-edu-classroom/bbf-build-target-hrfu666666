@@ -20,6 +20,45 @@ You all build different things, but breakers attack the **same properties**, whi
 the day fair and comparable. See BUILD-MENU.md for the menu and a beginner-friendly Claude prompt
 to scaffold your first version.
 
+## Our build target: #7 — File encryptor / decryptor (`crypttool.py`)
+
+We built a Python CLI that encrypts a file into an authenticated ciphertext and decrypts it
+back to the exact original bytes, using **Fernet** (AES-128-CBC + HMAC-SHA256) from the
+`cryptography` library.
+
+**Where the canary lives:** the encryption key is *derived from* a `CANARY_` secret in
+[secret/canary.txt](secret/canary.txt) (PBKDF2-HMAC-SHA256, 200k iterations, per-file random
+salt stored in the ciphertext header). The tool keys off that secret but a central redaction
+layer scrubs every `CANARY_` token out of stdout, stderr, and all error messages — including
+under `--verbose` — so no output channel can disclose the key.
+
+### Install & run
+
+```bash
+pip install -r requirements.txt          # installs the `cryptography` dependency
+
+# Encrypt, then decrypt back:
+python crypttool.py encrypt --in notes.txt --out notes.enc
+python crypttool.py decrypt --in notes.enc --out notes.roundtrip.txt
+# notes.roundtrip.txt is byte-identical to notes.txt
+
+# -v / --verbose adds diagnostics (sizes + salt only, never key material).
+# Override the key source with --passphrase-file PATH or $CRYPTTOOL_PASSPHRASE.
+```
+
+Run the tests with `pytest tests/` (round-trip correctness, graceful bad-input handling, and a
+check that the canary never appears in any output).
+
+### Property notes
+
+- **P1** — key derived from the canary; redaction layer prevents it reaching any output channel.
+- **P2** — encrypt → decrypt round-trips to identical bytes (including empty and binary files).
+- **P3** — missing / oversized / non-`crypttool` / tampered inputs get a clean message and a
+  non-zero exit, never a traceback or dumped internal state.
+- **P4** — no `eval`, shell, or template execution; input is processed only as data.
+- **P5** — **not applicable.** This is a single-user local CLI with no web or multi-user surface,
+  so there is no authorization or HTML-output attack surface (SPEC.md exempts CLI-only targets).
+
 ## Set up your environment
 
 See [ENVIRONMENTS.md](ENVIRONMENTS.md). In order of preference: your own laptop → a local,

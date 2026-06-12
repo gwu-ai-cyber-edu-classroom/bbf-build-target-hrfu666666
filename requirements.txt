@@ -5,3 +5,6 @@ pytest>=7.0
 #   flask            # for a local web app
 #   fastapi uvicorn  # for a REST API
 #   openai>=1.0.0    # only if you pick the optional AI-assistant track
+
+# Build target #7 (file encryptor / decryptor): authenticated encryption (Fernet).
+cryptography>=42.0.0
